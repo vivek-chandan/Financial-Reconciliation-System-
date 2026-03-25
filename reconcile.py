@@ -4,6 +4,7 @@ import argparse
 
 from recon.evaluation import build_ground_truth, load_ground_truth_csv
 from recon.input_loader import load_transaction_data
+from recon.analysis_report import generate_analysis_markdown
 from recon.learning_curve import evaluate_learning_curve
 from recon.ml_module import FinancialReconciler
 from recon.output_module import (
@@ -75,6 +76,12 @@ def main() -> None:
     calculate_metrics(final_report, reconciler.date_tolerance_days, ground_truth_df)
     reconciler.print_summary()
 
+    metrics = None
+    if ground_truth_df is not None:
+        from recon.evaluation import compute_classification_metrics
+
+        metrics = compute_classification_metrics(final_report, ground_truth_df)
+
     output_path = save_output(final_report, "output/reconciliation_results.csv")
     review_output = save_review_queue(review_queue, "output/reconciliation_review_queue.csv")
     learning_curve_output = save_learning_curve(learning_curve_df, "output/learning_curve.csv")
@@ -82,11 +89,19 @@ def main() -> None:
         hardest_types_df,
         "output/hardest_transaction_types.csv",
     )
+    analysis_output = generate_analysis_markdown(
+        final_report,
+        hardest_types_df,
+        learning_curve_df,
+        metrics,
+        "output/analysis_report.md",
+    )
     print(f"\n{'=' * 70}")
     print(f"✓ Results saved to: {output_path}")
     print(f"✓ Review queue saved to: {review_output}")
     print(f"✓ Learning curve saved to: {learning_curve_output}")
     print(f"✓ Hardest transaction analysis saved to: {hardest_types_output}")
+    print(f"✓ Analysis report saved to: {analysis_output}")
     if not hardest_types_df.empty:
         print("Hardest transaction types:")
         for row in hardest_types_df.head(5).itertuples(index=False):
