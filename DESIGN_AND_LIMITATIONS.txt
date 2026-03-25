@@ -1,0 +1,104 @@
+Design Decisions
+
+1. Choice of ML Approach
+
+The project uses a hybrid reconciliation pipeline:
+
+- deterministic unique-amount matching for high-confidence seed pairs
+- SVD-based semantic matching for ambiguous remaining transactions
+- cosine similarity for nearest-neighbor style selection in the reduced latent space
+
+This approach was chosen because it balances practicality and interpretability. Financial reconciliation benefits from strong business constraints such as amount similarity, date proximity, and transaction direction. Those constraints are used first to reduce the candidate search space. SVD is then applied to learn a compact semantic representation from previously matched transaction pairs, allowing the system to compare bank-side and register-side descriptions even when they use different wording.
+
+The approach is well-suited to the assignment because it:
+
+- learns from previously validated matches
+- remains lightweight enough for a command-line implementation
+- is easier to debug than a heavier deep-learning solution
+- can be extended incrementally as more reviewed matches are collected
+
+2. Departures from the Paper's Methodology
+
+The implementation is inspired by the paper, but it is not a strict reproduction of the full translation-model workflow.
+
+Main departures:
+
+- It does not build an explicit mutual-information term-alignment matrix.
+- It uses normalized token attributes rather than a full translation-table style descriptor mapping.
+- It combines ML scoring with deterministic business rules such as amount tolerance and hard date filtering.
+- It adds explicit issue flags, review queues, and analysis artifacts to support auditability and assignment reporting.
+
+These departures were intentional. A full paper-faithful implementation would be more academically complete, but it would also be more complex and harder to validate in the time available. The chosen design preserves the core idea of learning semantic correspondence between differently worded transactions while keeping the implementation reliable and understandable.
+
+3. Trade-offs Considered
+
+Several trade-offs shaped the final design:
+
+- Accuracy vs simplicity:
+  A full translation model might more closely match the paper, but the SVD-based approach is simpler to implement and still performs strongly on the dataset.
+
+- Pure ML vs hybrid business rules:
+  A purely unsupervised matcher would be elegant, but amount tolerance and date windows are high-value domain constraints, so using them improves robustness.
+
+- Aggressive auto-matching vs conservative review:
+  The system allows low-confidence ML matches to surface but also flags them explicitly, which keeps coverage high while still exposing risky cases for review.
+
+- Static report writing vs generated documentation:
+  The project now generates analysis artifacts automatically so the reporting remains consistent with the latest run.
+
+
+Limitations & Future Improvements
+
+1. Current Weaknesses
+
+The implementation has several known weaknesses:
+
+- Some ML matches remain low-confidence even after preprocessing improvements.
+- The semantic model uses token-level normalization rather than richer contextual embeddings.
+- The evaluation can rely on simulated ground truth when a labeled truth file is not provided.
+- The final end-to-end metrics are already very high on this dataset, so visible improvement after retraining is better shown through the learning curve than through final F1 alone.
+- The category-level difficulty analysis is heuristic and depends on the issue-flag design.
+
+2. What I Would Do With More Time
+
+With more time, I would improve the project in the following ways:
+
+- Add a configurable confidence rejection threshold so weak ML matches remain unmatched instead of being forced.
+- Support a richer text-representation approach such as sentence embeddings or learned merchant descriptors.
+- Expand normalization rules for merchants, utilities, checks, and transfer descriptions.
+- Add support for multiple review rounds and compare quality across rounds.
+- Provide an interactive review interface instead of only threshold-driven validation.
+- Add a proper external labeled ground-truth file to every evaluation run.
+- Track false positives and false negatives per category more explicitly.
+
+3. Handling Edge Cases
+
+If extended further, the system should handle edge cases using more specialized logic:
+
+- Repeated transactions with the same amount:
+  Use temporal sequence features, running balance changes, or local neighborhood context.
+
+- Generic descriptions such as "payment", "transfer", or "purchase":
+  Add stronger category-specific features and biller normalization.
+
+- Rounding or posting differences:
+  Learn category-aware amount tolerances instead of using one global threshold.
+
+- Ambiguous same-day, same-amount candidates:
+  Add tie-breaking features such as category similarity, recurring pattern history, or balance-based evidence.
+
+- Truly anomalous records:
+  Keep them explicitly unmatched rather than forcing a one-to-one assignment.
+
+4. Summary
+
+The current implementation is strong as an assignment solution because it delivers:
+
+- a working reconciliation pipeline
+- confidence scores
+- review/improve learning flow
+- evaluation metrics
+- issue flagging
+- automatic analysis artifacts
+
+Its main limitations are not around basic correctness, but around semantic richness, strict fidelity to the paper, and more advanced handling of ambiguous edge cases.
