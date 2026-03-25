@@ -4,10 +4,12 @@ import argparse
 
 from recon.evaluation import build_ground_truth, load_ground_truth_csv
 from recon.input_loader import load_transaction_data
+from recon.learning_curve import evaluate_learning_curve
 from recon.ml_module import FinancialReconciler
 from recon.output_module import (
     calculate_metrics,
     create_final_report,
+    save_learning_curve,
     save_output,
     save_review_queue,
 )
@@ -44,6 +46,14 @@ def main() -> None:
 
     reconciler = FinancialReconciler(n_components=15, date_tolerance_days=5)
     matches_df, bank_clean, register_clean = reconciler.reconcile_all(bank_df, register_df)
+    unique_matches_df = matches_df[matches_df["match_method"] == "Unique Amount"].copy()
+    learning_curve_df = evaluate_learning_curve(
+        bank_clean,
+        register_clean,
+        unique_matches_df,
+        n_components=reconciler.n_components,
+        date_tolerance_days=reconciler.date_tolerance_days,
+    )
     review_queue = build_review_queue(matches_df, args.review_threshold)
     reviewed_count = ingest_validated_matches(reconciler, review_queue, bank_clean, register_clean)
     if reviewed_count > 0:
@@ -64,9 +74,17 @@ def main() -> None:
 
     output_path = save_output(final_report, "output/reconciliation_results.csv")
     review_output = save_review_queue(review_queue, "output/reconciliation_review_queue.csv")
+    learning_curve_output = save_learning_curve(learning_curve_df, "output/learning_curve.csv")
     print(f"\n{'=' * 70}")
     print(f"✓ Results saved to: {output_path}")
     print(f"✓ Review queue saved to: {review_output}")
+    print(f"✓ Learning curve saved to: {learning_curve_output}")
+    if not learning_curve_df.empty:
+        print("Learning curve (validation accuracy by training size):")
+        for row in learning_curve_df.itertuples(index=False):
+            print(
+                f"  {int(row.training_pairs):>3} pairs -> accuracy {row.validation_accuracy:.4f}"
+            )
     print(f"{'=' * 70}\n")
 
 

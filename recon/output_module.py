@@ -127,3 +127,11 @@ def save_review_queue(review_df: pd.DataFrame, output_file: str) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     review_df.to_csv(output_path, index=False)
     return output_path
+
+
+def save_learning_curve(learning_curve_df: pd.DataFrame, output_file: str) -> Path:
+    """Save learning-curve analysis that shows model quality vs training size."""
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    learning_curve_df.to_csv(output_path, index=False)
+    return output_path

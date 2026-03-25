@@ -1,0 +1,7 @@
+training_fraction,training_pairs,validation_pairs,correct_predictions,validation_accuracy
+0.1,22,57,28,0.4912
+0.2,45,57,35,0.614
+0.4,91,57,36,0.6316
+0.6,137,57,39,0.6842
+0.8,183,57,39,0.6842
+1.0,229,57,40,0.7018
