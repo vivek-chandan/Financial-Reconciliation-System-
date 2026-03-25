@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pandas as pd
+
+from recon.input_loader import resolve_input_path
 
 
 ID_SUFFIX_PATTERN = re.compile(r"(\d+)$")
@@ -14,6 +17,35 @@ def extract_id_suffix(transaction_id: str) -> str | None:
     """Extract the numeric suffix used by the synthetic dataset IDs."""
     match = ID_SUFFIX_PATTERN.search(str(transaction_id))
     return match.group(1) if match else None
+
+
+def load_ground_truth_csv(ground_truth_file: str | Path) -> pd.DataFrame:
+    """
+    Load a labeled ground-truth CSV and normalize it to `bank_id` / `reg_id`.
+
+    Accepted column pairs:
+    - `bank_id`, `reg_id`
+    - `bank_transaction_id`, `register_transaction_id`
+    """
+    ground_truth_path = resolve_input_path(str(ground_truth_file))
+    ground_truth_df = pd.read_csv(ground_truth_path)
+
+    rename_map = {}
+    if "bank_transaction_id" in ground_truth_df.columns:
+        rename_map["bank_transaction_id"] = "bank_id"
+    if "register_transaction_id" in ground_truth_df.columns:
+        rename_map["register_transaction_id"] = "reg_id"
+    ground_truth_df = ground_truth_df.rename(columns=rename_map)
+
+    required_columns = {"bank_id", "reg_id"}
+    missing_columns = required_columns - set(ground_truth_df.columns)
+    if missing_columns:
+        missing_list = ", ".join(sorted(missing_columns))
+        raise ValueError(
+            f"Ground truth file must contain bank/register match columns. Missing: {missing_list}"
+        )
+
+    return ground_truth_df[["bank_id", "reg_id"]].dropna().drop_duplicates().reset_index(drop=True)
 
 
 # The "ground truth" is simulated by aligning the synthetic IDs 
