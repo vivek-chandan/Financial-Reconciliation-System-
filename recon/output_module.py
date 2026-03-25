@@ -39,6 +39,7 @@ def create_final_report(matches_df: pd.DataFrame, bank_df: pd.DataFrame, registe
         "confidence",
         "match_method",
         "date_lag_days",
+        "issue_flags",
         "match_notes",
         "date_bank",
         "description_bank",
@@ -90,6 +91,17 @@ def calculate_metrics(report_df: pd.DataFrame, date_tolerance_days: int, ground_
     print(f"  High confidence (≥0.9): {len(matched[matched['confidence'] >= 0.9])}")
     print(f"  Medium confidence (0.7-0.9): {len(matched[(matched['confidence'] >= 0.7) & (matched['confidence'] < 0.9)])}")
     print(f"  Low confidence (<0.7): {len(matched[matched['confidence'] < 0.7])}")
+
+    if "issue_flags" in report_df.columns:
+        flagged = report_df[report_df["issue_flags"] != "OK"]
+        print("\nIssue Flag Summary:")
+        print(f"  Flagged rows: {len(flagged)}")
+        if len(flagged) > 0:
+            print(f"  Date differences: {report_df['issue_flags'].fillna('').str.contains('DATE_DIFFERENCE').sum()}")
+            print(f"  Rounding differences: {report_df['issue_flags'].fillna('').str.contains('ROUNDING_DIFFERENCE').sum()}")
+            print(f"  Low confidence: {report_df['issue_flags'].fillna('').str.contains('LOW_CONFIDENCE').sum()}")
+            print(f"  Medium confidence: {report_df['issue_flags'].fillna('').str.contains('MEDIUM_CONFIDENCE').sum()}")
+            print(f"  Unmatched: {report_df['issue_flags'].fillna('').str.contains('UNMATCHED').sum()}")
 
     if "date_lag_days" in matched.columns:
         lag_data = matched[matched["date_lag_days"].notna()]["date_lag_days"]

@@ -35,6 +35,45 @@ class FinancialReconciler:
             "duplicates_removed": 0,
         }
 
+    def build_issue_flags(
+        self,
+        bank_row: pd.Series,
+        register_row: pd.Series | None,
+        confidence: float,
+        date_lag_days: int | None,
+        amount_threshold: float = 0.05,
+    ) -> str:
+        """
+        Build concise issue flags for output/reporting.
+
+        These flags make potential review concerns explicit instead of leaving
+        them implicit in confidence scores and free-form notes.
+        """
+        if register_row is None:
+            return "UNMATCHED"
+
+        flags: list[str] = []
+        if date_lag_days is not None and abs(date_lag_days) > self.date_tolerance_days:
+            flags.append("DATE_DIFFERENCE")
+
+        amount_gap = abs(float(bank_row["amount"]) - float(register_row["amount"]))
+        if 0 < amount_gap <= amount_threshold:
+            flags.append("ROUNDING_DIFFERENCE")
+        elif amount_gap > amount_threshold:
+            flags.append("AMOUNT_DIFFERENCE")
+
+        if confidence < 0.70:
+            flags.append("LOW_CONFIDENCE")
+        elif confidence < 0.85:
+            flags.append("MEDIUM_CONFIDENCE")
+
+        bank_type = "dr" if "debit" in str(bank_row["type"]).lower() or "dr" in str(bank_row["type"]).lower() else "cr"
+        register_type = "dr" if "debit" in str(register_row["type"]).lower() or "dr" in str(register_row["type"]).lower() else "cr"
+        if bank_type != register_type:
+            flags.append("TYPE_MISMATCH")
+
+        return "|".join(flags) if flags else "OK"
+
     def reset_matching_state(self) -> None:
         """Reset one-to-one bookkeeping for a fresh reconciliation pass."""
         self.matched_bank_ids = set() # Reset matched bank transaction IDs
@@ -84,6 +123,7 @@ class FinancialReconciler:
                     "match_method": "Unique Amount",
                     "date_lag_days": lag,
                     "notes": note,
+                    "issue_flags": self.build_issue_flags(bank_row, register_row, 1.0, lag),
                 }
             )
 
@@ -169,6 +209,7 @@ class FinancialReconciler:
             "match_method": "ML (SVD+Cosine)",
             "date_lag_days": lag,
             "notes": note,
+            "issue_flags": self.build_issue_flags(bank_row, best_match, best_similarity, lag),
         }
 # The main reconciliation function runs the entire pipeline: it preprocesses the data, performs unique amount matching,
 # trains the ML model, and then applies ML-based matching to the remaining unmatched transactions. It also collects statistics on the process.
@@ -210,6 +251,7 @@ class FinancialReconciler:
                             "match_method": "Unmatched",
                             "date_lag_days": None,
                             "notes": "No available match found",
+                            "issue_flags": "UNMATCHED",
                         }
                     )
 
@@ -256,6 +298,7 @@ class FinancialReconciler:
                             "match_method": "Unmatched",
                             "date_lag_days": None,
                             "notes": "No available match found",
+                            "issue_flags": "UNMATCHED",
                         }
                     )
 
