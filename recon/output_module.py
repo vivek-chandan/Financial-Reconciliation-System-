@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from recon.evaluation import build_ground_truth, compute_classification_metrics
+from recon.evaluation import compute_classification_metrics
 
 
 def create_final_report(matches_df: pd.DataFrame, bank_df: pd.DataFrame, register_df: pd.DataFrame) -> pd.DataFrame:
@@ -115,8 +115,3 @@ def save_review_queue(review_df: pd.DataFrame, output_file: str) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     review_df.to_csv(output_path, index=False)
     return output_path
-
-
-def build_default_ground_truth(bank_df: pd.DataFrame, register_df: pd.DataFrame) -> pd.DataFrame:
-    """Construct simulated ground truth when a labeled file is not provided."""
-    return build_ground_truth(bank_df, register_df)
