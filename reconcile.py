@@ -7,11 +7,13 @@ from recon.input_loader import load_transaction_data
 from recon.learning_curve import evaluate_learning_curve
 from recon.ml_module import FinancialReconciler
 from recon.output_module import (
+    analyze_hardest_transaction_types,
     calculate_metrics,
     create_final_report,
     save_learning_curve,
     save_output,
     save_review_queue,
+    save_transaction_type_analysis,
 )
 from recon.review_cycle import build_review_queue, ingest_validated_matches
 
@@ -60,6 +62,7 @@ def main() -> None:
         matches_df = reconciler.improve_with_review(bank_clean, register_clean, reviewed_count)
 
     final_report = create_final_report(matches_df, bank_clean, register_clean)
+    hardest_types_df = analyze_hardest_transaction_types(final_report)
     ground_truth_df = None
     if args.ground_truth_file:
         ground_truth_df = load_ground_truth_csv(args.ground_truth_file)
@@ -75,10 +78,23 @@ def main() -> None:
     output_path = save_output(final_report, "output/reconciliation_results.csv")
     review_output = save_review_queue(review_queue, "output/reconciliation_review_queue.csv")
     learning_curve_output = save_learning_curve(learning_curve_df, "output/learning_curve.csv")
+    hardest_types_output = save_transaction_type_analysis(
+        hardest_types_df,
+        "output/hardest_transaction_types.csv",
+    )
     print(f"\n{'=' * 70}")
     print(f"✓ Results saved to: {output_path}")
     print(f"✓ Review queue saved to: {review_output}")
     print(f"✓ Learning curve saved to: {learning_curve_output}")
+    print(f"✓ Hardest transaction analysis saved to: {hardest_types_output}")
+    if not hardest_types_df.empty:
+        print("Hardest transaction types:")
+        for row in hardest_types_df.head(5).itertuples(index=False):
+            print(
+                f"  {row.category}: difficulty {row.difficulty_score:.4f}, "
+                f"flags {int(row.flagged_transactions)}/{int(row.total_transactions)}, "
+                f"avg confidence {row.average_confidence:.4f}"
+            )
     if not learning_curve_df.empty:
         print("Learning curve (validation accuracy by training size):")
         for row in learning_curve_df.itertuples(index=False):

@@ -113,6 +113,56 @@ def calculate_metrics(report_df: pd.DataFrame, date_tolerance_days: int, ground_
             print(f"  Outside tolerance (>{date_tolerance_days} days): {len(lag_data[abs(lag_data) > date_tolerance_days])}")
 
 
+def analyze_hardest_transaction_types(report_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Rank transaction categories by how difficult they are to reconcile.
+
+    Difficulty is driven by a combination of ML reliance, lower confidence,
+    and issue flags. This turns the manual "hardest transaction types" analysis
+    into a reproducible artifact for the assignment report.
+    """
+    analysis_df = report_df.copy()
+    analysis_df["category"] = analysis_df["category"].fillna("Unknown")
+    analysis_df["has_known_category"] = analysis_df["category"].ne("Unknown")
+    analysis_df["is_ml_match"] = analysis_df["match_method"].eq("ML (SVD+Cosine)")
+    analysis_df["is_matched"] = analysis_df["reg_id"].notna()
+    analysis_df["is_flagged"] = analysis_df["issue_flags"].fillna("OK").ne("OK")
+    analysis_df["is_low_confidence"] = analysis_df["issue_flags"].fillna("").str.contains("LOW_CONFIDENCE")
+    analysis_df["is_medium_confidence"] = analysis_df["issue_flags"].fillna("").str.contains("MEDIUM_CONFIDENCE")
+    analysis_df["is_unmatched"] = analysis_df["issue_flags"].fillna("").str.contains("UNMATCHED")
+
+    summary = (
+        analysis_df.groupby("category", dropna=False)
+        .agg(
+            has_known_category=("has_known_category", "max"),
+            total_transactions=("bank_id", "count"),
+            matched_transactions=("is_matched", "sum"),
+            ml_matches=("is_ml_match", "sum"),
+            flagged_transactions=("is_flagged", "sum"),
+            low_confidence_matches=("is_low_confidence", "sum"),
+            medium_confidence_matches=("is_medium_confidence", "sum"),
+            unmatched_transactions=("is_unmatched", "sum"),
+            average_confidence=("confidence", "mean"),
+        )
+        .reset_index()
+    )
+
+    summary["ml_match_rate"] = (summary["ml_matches"] / summary["total_transactions"]).round(4)
+    summary["flag_rate"] = (summary["flagged_transactions"] / summary["total_transactions"]).round(4)
+    summary["unmatched_rate"] = (summary["unmatched_transactions"] / summary["total_transactions"]).round(4)
+    summary["difficulty_score"] = (
+        0.45 * summary["flag_rate"]
+        + 0.25 * summary["ml_match_rate"]
+        + 0.20 * summary["unmatched_rate"]
+        + 0.10 * (1 - summary["average_confidence"].fillna(0))
+    ).round(4)
+
+    return summary.sort_values(
+        by=["has_known_category", "difficulty_score", "low_confidence_matches", "flagged_transactions", "category"],
+        ascending=[False, False, False, False, True],
+    ).reset_index(drop=True)
+
+
 def save_output(report_df: pd.DataFrame, output_file: str) -> Path:
     """Save the final report while preserving the same CSV format."""
     output_path = Path(output_file)
@@ -134,4 +184,12 @@ def save_learning_curve(learning_curve_df: pd.DataFrame, output_file: str) -> Pa
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     learning_curve_df.to_csv(output_path, index=False)
+    return output_path
+
+
+def save_transaction_type_analysis(analysis_df: pd.DataFrame, output_file: str) -> Path:
+    """Save automatic analysis of the hardest transaction types."""
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    analysis_df.to_csv(output_path, index=False)
     return output_path

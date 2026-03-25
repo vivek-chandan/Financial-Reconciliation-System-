@@ -1,0 +1,15 @@
+category,has_known_category,total_transactions,matched_transactions,ml_matches,flagged_transactions,low_confidence_matches,medium_confidence_matches,unmatched_transactions,average_confidence,ml_match_rate,flag_rate,unmatched_rate,difficulty_score
+Utility,True,14,14,3,3,1,1,0,0.9555071428571429,0.2143,0.2143,0.0,0.1545
+Subscription,True,16,16,2,2,0,0,0,0.9982125,0.125,0.125,0.0,0.0877
+Check Payment,True,20,20,2,2,1,1,0,0.963025,0.1,0.1,0.0,0.0737
+Grocery,True,61,61,6,5,0,3,0,0.986739344262295,0.0984,0.082,0.0,0.0628
+Transfer,True,25,25,1,1,0,1,0,0.989996,0.04,0.04,0.0,0.029
+Online Purchase,True,51,51,2,2,1,1,0,0.9890666666666666,0.0392,0.0392,0.0,0.0285
+Gas Station,True,21,21,2,0,0,0,0,0.9946238095238096,0.0952,0.0,0.0,0.0243
+Insurance,True,12,12,1,0,0,0,0,0.9941666666666666,0.0833,0.0,0.0,0.0214
+Restaurant,True,47,47,2,1,1,0,0,0.9906106382978723,0.0426,0.0213,0.0,0.0212
+Atm Withdrawal,True,12,12,0,0,0,0,0,1.0,0.0,0.0,0.0,0.0
+Bank Fee,True,9,9,0,0,0,0,0,1.0,0.0,0.0,0.0,0.0
+Miscellaneous,True,8,8,0,0,0,0,0,1.0,0.0,0.0,0.0,0.0
+Payroll,True,11,11,0,0,0,0,0,1.0,0.0,0.0,0.0,0.0
+Unknown,False,1,0,0,1,0,0,1,0.0,0.0,1.0,1.0,0.75
