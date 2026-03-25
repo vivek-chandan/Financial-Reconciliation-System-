@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import argparse
 
+from recon.evaluation import build_ground_truth, load_ground_truth_csv
 from recon.input_loader import load_transaction_data
 from recon.ml_module import FinancialReconciler
 from recon.output_module import (
-    build_default_ground_truth,
     calculate_metrics,
     create_final_report,
     save_output,
@@ -24,6 +24,16 @@ def parse_args() -> argparse.Namespace:
         default=0.85,
         help="Confidence threshold for auto-validating ML review candidates.",
     )
+    parser.add_argument(
+        "--ground-truth-file",
+        default=None,
+        help="Optional labeled ground-truth CSV with bank_id/reg_id columns.",
+    )
+    parser.add_argument(
+        "--use-simulated-ground-truth",
+        action="store_true",
+        help="Use ID-suffix-based simulated ground truth when no labeled file is available.",
+    )
     return parser.parse_args()
 
 
@@ -40,7 +50,15 @@ def main() -> None:
         matches_df = reconciler.improve_with_review(bank_clean, register_clean, reviewed_count)
 
     final_report = create_final_report(matches_df, bank_clean, register_clean)
-    ground_truth_df = build_default_ground_truth(bank_clean, register_clean)
+    ground_truth_df = None
+    if args.ground_truth_file:
+        ground_truth_df = load_ground_truth_csv(args.ground_truth_file)
+        print(f"Using labeled ground truth from: {args.ground_truth_file}")
+    elif args.use_simulated_ground_truth:
+        ground_truth_df = build_ground_truth(bank_clean, register_clean)
+        print("Using simulated ground truth derived from transaction ID suffixes.")
+    else:
+        print("No ground truth file provided; precision/recall/F1 will be skipped.")
     calculate_metrics(final_report, reconciler.date_tolerance_days, ground_truth_df)
     reconciler.print_summary()
 
